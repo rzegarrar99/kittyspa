@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { Card, Button, Spinner, Modal, EmptyState, Badge, PageHeader, FormInput, FormSelect, Table, Thead, Tbody, Tr, Th, Td } from '../components/UI';
+import { Card, Button, Spinner, Modal, EmptyState, Badge, Input, Select } from '../components/UI';
 import { ShoppingCart, Plus } from 'lucide-react';
 import { usePurchases, useSuppliers, useOrders, useInventory, useKardex } from '../hooks/useSupabase';
 import { useToast } from '../contexts/ToastContext';
 import { useAuthStore } from '../stores/authStore';
-import { PaymentMethod } from '../types';
+import { KittyIcon } from '../components/KittyIcon';
+import { motion } from 'framer-motion';
 
 export const Compras: React.FC = () => {
   const { data: purchases, loading, addItem } = usePurchases();
@@ -13,15 +14,17 @@ export const Compras: React.FC = () => {
   const { addItem: addKardex } = useKardex();
   const { addMovement } = useOrders();
   const { addToast } = useToast();
-  const user = useAuthStore(state => state.user);
+  const { user } = useAuthStore();
   
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [formData, setFormData] = useState({ supplier_id: '', item_id: '', quantity: '', cost: '', payment_method: 'Transferencia' as PaymentMethod });
+  const [formData, setFormData] = useState({ supplier_id: '', item_id: '', quantity: '', cost: '' });
 
   const getSupplierName = (id: string) => suppliers.find(s => s.id === id)?.name || 'Desconocido';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!user) return;
+
     const qty = Number(formData.quantity);
     const cost = Number(formData.cost);
     const totalAmount = qty * cost;
@@ -32,6 +35,8 @@ export const Compras: React.FC = () => {
 
     await addItem({
       supplier_id: formData.supplier_id,
+      document_type: 'FACTURA',
+      document_number: `F001-${Date.now().toString().slice(-6)}`,
       total: totalAmount,
       date: new Date().toISOString(),
       status: 'Completado'
@@ -41,7 +46,7 @@ export const Compras: React.FC = () => {
       type: 'Egreso',
       description: `Compra a ${supplierName}: ${qty}x ${item.name}`,
       amount: totalAmount,
-      payment_method: formData.payment_method
+      payment_method: 'Efectivo'
     });
 
     const newStock = item.stock + qty;
@@ -50,79 +55,117 @@ export const Compras: React.FC = () => {
     await addKardex({
       item_id: item.id,
       type: 'Ingreso',
+      transaction_type: 'COMPRA',
+      document_type: 'FACTURA',
+      document_number: `F001-${Date.now().toString().slice(-6)}`,
       quantity: qty,
+      previous_balance: item.stock,
       balance: newStock,
-      reason: `Compra a Proveedor`,
-      reference: supplierName,
+      reason: `Compra a Proveedor: ${supplierName}`,
       unit_cost: cost,
       total_cost: totalAmount,
-      staff_name: user?.name || 'Sistema',
+      staff_name: user.name,
       date: new Date().toISOString()
     });
 
     addToast('Compra registrada y stock actualizado 🎀', 'success');
     setIsModalOpen(false);
-    setFormData({ supplier_id: '', item_id: '', quantity: '', cost: '', payment_method: 'Transferencia' });
+    setFormData({ supplier_id: '', item_id: '', quantity: '', cost: '' });
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <PageHeader 
-        title="Compras" 
-        subtitle="Registro de compras y abastecimiento." 
-        action={<Button onClick={() => setIsModalOpen(true)}><Plus className="w-5 h-5" /> Registrar Compra</Button>} 
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-full border border-white p-2 shadow-sm">
+            <KittyIcon className="w-10 h-10" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-plum">Compras</h1>
+            <p className="text-plum/60 font-bold mt-1">Registro de compras y abastecimiento.</p>
+          </div>
+        </div>
+        <Button onClick={() => setIsModalOpen(true)}>
+          <Plus className="w-5 h-5" /> Registrar Compra
+        </Button>
+      </div>
 
       <Card className="p-0 overflow-hidden">
         {loading ? <Spinner /> : purchases.length === 0 ? <EmptyState message="No hay compras registradas." /> : (
-          <Table>
-            <Thead>
-              <Th className="pl-6">Fecha</Th>
-              <Th>Proveedor</Th>
-              <Th>Total</Th>
-              <Th>Estado</Th>
-            </Thead>
-            <Tbody>
-              {purchases.map((purchase, idx) => (
-                <Tr key={purchase.id} index={idx}>
-                  <Td className="pl-6 font-semibold text-plum/80">
-                    {new Date(purchase.date).toLocaleDateString('es-PE')}
-                  </Td>
-                  <Td className="font-bold text-plum flex items-center gap-3">
-                    <div className="bg-white/80 p-2 rounded-xl border border-white shadow-sm">
-                      <ShoppingCart className="w-4 h-4 text-primary" />
-                    </div>
-                    {getSupplierName(purchase.supplier_id)}
-                  </Td>
-                  <Td className="font-extrabold text-primary">S/. {purchase.total.toFixed(2)}</Td>
-                  <Td>
-                    <Badge variant={purchase.status === 'Completado' ? 'pink' : 'gray'}>{purchase.status}</Badge>
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-plum/50 text-xs uppercase tracking-widest font-bold border-b border-pink-100">
+                  <th className="p-4 pl-6">Fecha</th>
+                  <th className="p-4">Proveedor</th>
+                  <th className="p-4">Documento</th>
+                  <th className="p-4">Total</th>
+                  <th className="p-4">Estado</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-pink-50">
+                {purchases.map((purchase, idx) => (
+                  <motion.tr key={purchase.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.05 }} className="hover:bg-white/40 transition-colors group">
+                    <td className="p-4 pl-6 font-semibold text-plum/80">
+                      {new Date(purchase.date).toLocaleDateString('es-PE')}
+                    </td>
+                    <td className="p-4 font-bold text-plum flex items-center gap-3">
+                      <div className="bg-white/80 p-2 rounded-xl border border-white shadow-sm">
+                        <ShoppingCart className="w-4 h-4 text-primary" />
+                      </div>
+                      {getSupplierName(purchase.supplier_id)}
+                    </td>
+                    <td className="p-4 text-plum/70 font-bold text-xs">
+                      {purchase.document_type} {purchase.document_number}
+                    </td>
+                    <td className="p-4 font-extrabold text-primary">S/. {purchase.total.toFixed(2)}</td>
+                    <td className="p-4">
+                      <Badge variant={purchase.status === 'Completado' ? 'pink' : 'gray'}>{purchase.status}</Badge>
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
 
       <Modal isOpen={isModalOpen} onClose={() => setIsModalOpen(false)} title="Registrar Compra">
         <form onSubmit={handleSubmit} className="space-y-4">
-          <FormSelect label="Proveedor" required value={formData.supplier_id} onChange={e => setFormData({...formData, supplier_id: e.target.value})}>
-            <option value="">Seleccionar...</option>
-            {suppliers.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
-          </FormSelect>
-          <FormSelect label="Producto a Abastecer" required value={formData.item_id} onChange={e => setFormData({...formData, item_id: e.target.value})}>
-            <option value="">Seleccionar Producto...</option>
-            {inventory.map(i => <option key={i.id} value={i.id}>{i.name} (Stock: {i.stock})</option>)}
-          </FormSelect>
-          <div className="grid grid-cols-3 gap-4">
-            <FormInput label="Cantidad" required type="number" min="1" value={formData.quantity} onChange={e => setFormData({...formData, quantity: e.target.value})} placeholder="Ej. 10" />
-            <FormInput label="Costo Unitario (S/.)" required type="number" min="0.1" step="0.1" value={formData.cost} onChange={e => setFormData({...formData, cost: e.target.value})} placeholder="0.00" />
-            <FormSelect label="Método de Pago" required value={formData.payment_method} onChange={e => setFormData({...formData, payment_method: e.target.value as PaymentMethod})}>
-              <option value="Transferencia">Transferencia</option>
-              <option value="Efectivo">Efectivo (Caja)</option>
-              <option value="Tarjeta">Tarjeta</option>
-            </FormSelect>
+          <Select 
+            label="Proveedor"
+            required 
+            value={formData.supplier_id} 
+            onChange={e => setFormData({...formData, supplier_id: e.target.value})}
+            options={suppliers.map(s => ({ value: s.id, label: s.name }))}
+          />
+          <Select 
+            label="Producto a Abastecer"
+            required 
+            value={formData.item_id} 
+            onChange={e => setFormData({...formData, item_id: e.target.value})}
+            options={inventory.map(i => ({ value: i.id, label: `${i.name} (Stock: ${i.stock})` }))}
+          />
+          <div className="grid grid-cols-2 gap-4">
+            <Input 
+              label="Cantidad"
+              required 
+              type="number" 
+              min="1" 
+              value={formData.quantity} 
+              onChange={e => setFormData({...formData, quantity: e.target.value})} 
+              placeholder="Ej. 10" 
+            />
+            <Input 
+              label="Costo Unitario (S/.)"
+              required 
+              type="number" 
+              min="0.1" 
+              step="0.1" 
+              value={formData.cost} 
+              onChange={e => setFormData({...formData, cost: e.target.value})} 
+              placeholder="0.00" 
+            />
           </div>
           <div className="pt-4 flex justify-end gap-3">
             <Button type="button" variant="ghost" onClick={() => setIsModalOpen(false)}>Cancelar</Button>
