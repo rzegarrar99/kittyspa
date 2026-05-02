@@ -1,8 +1,9 @@
 import React from 'react';
-import { Card, Badge, EmptyState, PageHeader, Table, Thead, Tbody, Tr, Th, Td } from '../components/UI';
-import { ArrowRightLeft, TrendingUp, TrendingDown, Wallet, Banknote, CreditCard, Landmark } from 'lucide-react';
+import { Card, Badge, EmptyState } from '../components/UI';
+import { ArrowRightLeft, TrendingUp, TrendingDown, Wallet, Banknote, CreditCard, Landmark, QrCode } from 'lucide-react';
 import { useOrders } from '../hooks/useSupabase';
-import { YapeIcon, PlinIcon } from '../components/PaymentIcons';
+import { KittyIcon } from '../components/KittyIcon';
+import { motion } from 'framer-motion';
 
 export const Movimientos: React.FC = () => {
   const { movements } = useOrders();
@@ -14,7 +15,7 @@ export const Movimientos: React.FC = () => {
   const getPaymentIcon = (method: string) => {
     switch (method) {
       case 'Efectivo': return <Banknote className="w-3 h-3" />;
-      case 'Yape/Plin': return <YapeIcon className="w-3 h-3" />;
+      case 'Billetera Digital': return <QrCode className="w-3 h-3" />;
       case 'Tarjeta': return <CreditCard className="w-3 h-3" />;
       case 'Transferencia': return <Landmark className="w-3 h-3" />;
       default: return <Wallet className="w-3 h-3" />;
@@ -23,10 +24,15 @@ export const Movimientos: React.FC = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <PageHeader 
-        title="Movimientos de Caja" 
-        subtitle="Historial completo de ingresos y egresos." 
-      />
+      <div className="flex items-center gap-4">
+        <div className="bg-white/80 backdrop-blur-sm rounded-full border border-white p-2 shadow-sm">
+          <KittyIcon className="w-10 h-10" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-extrabold text-plum">Movimientos de Caja</h1>
+          <p className="text-plum/60 font-bold mt-1">Historial completo de ingresos y egresos.</p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <Card className="bg-green-50/80 border-green-100 flex items-center gap-4">
@@ -62,41 +68,51 @@ export const Movimientos: React.FC = () => {
         {movements.length === 0 ? (
           <EmptyState message="No hay movimientos registrados." />
         ) : (
-          <Table>
-            <Thead>
-              <Th className="pl-6">Fecha</Th>
-              <Th>Descripción</Th>
-              <Th>Método</Th>
-              <Th>Tipo</Th>
-              <Th className="text-right pr-6">Monto</Th>
-            </Thead>
-            <Tbody>
-              {movements.map((mov, idx) => (
-                <Tr key={mov.id} index={idx}>
-                  <Td className="pl-6 font-semibold text-plum/80">
-                    {new Date(mov.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}
-                  </Td>
-                  <Td className="font-bold text-plum flex items-center gap-3">
-                    <div className="bg-white/80 p-2 rounded-xl border border-white shadow-sm">
-                      <ArrowRightLeft className="w-4 h-4 text-primary" />
-                    </div>
-                    {mov.description}
-                  </Td>
-                  <Td>
-                    <span className="flex items-center gap-1 text-xs font-bold text-plum/70 bg-white/50 px-2 py-1 rounded-lg border border-white w-max">
-                      {getPaymentIcon(mov.payment_method)} {mov.payment_method}
-                    </span>
-                  </Td>
-                  <Td>
-                    <Badge variant={mov.type === 'Ingreso' ? 'pink' : 'red'}>{mov.type}</Badge>
-                  </Td>
-                  <Td className={`pr-6 text-right font-extrabold ${mov.type === 'Ingreso' ? 'text-green-500' : 'text-red-500'}`}>
-                    {mov.type === 'Ingreso' ? '+' : '-'} S/. {mov.amount.toFixed(2)}
-                  </Td>
-                </Tr>
-              ))}
-            </Tbody>
-          </Table>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="text-plum/50 text-xs uppercase tracking-widest font-bold border-b border-pink-100">
+                  <th className="p-4 pl-6">Fecha</th>
+                  <th className="p-4">Descripción</th>
+                  <th className="p-4">Método</th>
+                  <th className="p-4">Tipo</th>
+                  <th className="p-4 text-right pr-6">Monto</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-pink-50">
+                {movements.map((mov, idx) => (
+                  <motion.tr 
+                    key={mov.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: idx * 0.05 }}
+                    className="hover:bg-white/40 transition-colors group"
+                  >
+                    <td className="p-4 pl-6 font-semibold text-plum/80">
+                      {new Date(mov.created_at).toLocaleString('es-PE', { dateStyle: 'short', timeStyle: 'short' })}
+                    </td>
+                    <td className="p-4 font-bold text-plum flex items-center gap-3">
+                      <div className="bg-white/80 p-2 rounded-xl border border-white shadow-sm">
+                        <ArrowRightLeft className="w-4 h-4 text-primary" />
+                      </div>
+                      {mov.description}
+                    </td>
+                    <td className="p-4">
+                      <span className="flex items-center gap-1 text-xs font-bold text-plum/70 bg-white/50 px-2 py-1 rounded-lg border border-white w-max">
+                        {getPaymentIcon(mov.payment_method)} {mov.payment_method}
+                      </span>
+                    </td>
+                    <td className="p-4">
+                      <Badge variant={mov.type === 'Ingreso' ? 'pink' : 'red'}>{mov.type}</Badge>
+                    </td>
+                    <td className={`p-4 pr-6 text-right font-extrabold ${mov.type === 'Ingreso' ? 'text-green-500' : 'text-red-500'}`}>
+                      {mov.type === 'Ingreso' ? '+' : '-'} S/. {mov.amount.toFixed(2)}
+                    </td>
+                  </motion.tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         )}
       </Card>
     </div>
