@@ -1,11 +1,9 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { Card, Button } from '../UI';
-import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { KittyIcon } from '../KittyIcon';
+import { Button } from '../UI';
 
 interface Props {
   children: ReactNode;
-  fallback?: ReactNode;
 }
 
 interface State {
@@ -27,38 +25,27 @@ export class ErrorBoundary extends Component<Props, State> {
     console.error('Uncaught error:', error, errorInfo);
   }
 
-  private handleReset = () => {
-    this.setState({ hasError: false, error: null });
-    window.location.reload();
-  };
-
   public render() {
     if (this.state.hasError) {
-      if (this.props.fallback) {
-        return this.props.fallback;
-      }
-
       return (
-        <div className="min-h-screen flex items-center justify-center p-4 bg-background">
-          <Card className="max-w-md w-full text-center border-red-200 shadow-[0_10px_40px_-10px_rgba(220,38,38,0.15)]">
-            <div className="bg-red-50 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-6 border-4 border-white shadow-sm">
-              <AlertTriangle className="w-10 h-10 text-red-500" />
+        <div className="min-h-screen flex items-center justify-center bg-background p-4">
+          <div className="bg-white/80 backdrop-blur-2xl rounded-[3rem] p-10 border border-white shadow-glass max-w-lg text-center">
+            <div className="bg-red-50 w-28 h-28 rounded-full flex items-center justify-center mx-auto mb-6 border border-red-100 shadow-sm">
+              <KittyIcon isSleeping={true} className="w-20 h-20 text-red-400" />
             </div>
-            <h2 className="text-2xl font-black text-plum mb-2 uppercase tracking-tight">¡Ups! Algo salió mal</h2>
-            <p className="text-plum/60 font-bold mb-6 text-sm">
-              Ha ocurrido un error inesperado en la aplicación. Nuestro equipo de gatitos técnicos ya ha sido notificado.
+            <h1 className="text-3xl font-black text-plum mb-2 uppercase tracking-tight">¡Ups! Algo salió mal 🎀</h1>
+            <p className="text-plum/60 font-bold mb-6">
+              Nuestra gatita tropezó con un error inesperado. Por favor, recarga la página para continuar.
             </p>
-            
-            {process.env.NODE_ENV === 'development' && this.state.error && (
-              <div className="bg-red-50 p-4 rounded-2xl text-left overflow-auto max-h-40 mb-6 border border-red-100">
-                <p className="text-xs font-mono text-red-800">{this.state.error.toString()}</p>
-              </div>
-            )}
-
-            <Button onClick={this.handleReset} className="w-full">
-              <RefreshCw className="w-5 h-5" /> Recargar Aplicación
+            <div className="bg-white/50 p-4 rounded-2xl border border-white text-left overflow-auto max-h-32 mb-8 shadow-inner">
+              <code className="text-xs text-red-500 font-bold">
+                {this.state.error?.message || 'Error desconocido'}
+              </code>
+            </div>
+            <Button onClick={() => window.location.reload()} className="w-full py-4 text-lg">
+              Recargar Página
             </Button>
-          </Card>
+          </div>
         </div>
       );
     }
