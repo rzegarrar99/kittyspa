@@ -50,6 +50,8 @@ export const printTicket = (order: Order, clientName: string, staffName: string,
           .items th, .items td { text-align: left; padding: 5px 0; }
           .items th { border-bottom: 1px solid #ccc; }
           .items td.price { text-align: right; }
+          .discount-text { font-size: 10px; color: #D4AF37; display: block; }
+          .original-price { text-decoration: line-through; color: #999; font-size: 10px; margin-right: 4px; }
           .total { text-align: right; font-size: 18px; font-weight: bold; margin-top: 20px; }
           .payment-method { text-align: right; font-size: 12px; color: #666; margin-top: 10px; }
           .footer { margin-top: 30px; font-size: 12px; color: #FF2A7A; font-style: italic; }
@@ -81,8 +83,14 @@ export const printTicket = (order: Order, clientName: string, staffName: string,
             <tbody>
               ${items.map(item => `
                 <tr>
-                  <td>${item.quantity}x ${item.name}</td>
-                  <td class="price">${settings.currency.split(' ')[0]} ${(item.price * item.quantity).toFixed(2)}</td>
+                  <td>
+                    ${item.quantity}x ${item.name}
+                    ${item.discountType ? `<span class="discount-text">${item.discountType === 'gift' ? '🎁 REGALO' : '📉 DESCUENTO APLICADO'}</span>` : ''}
+                  </td>
+                  <td class="price">
+                    ${item.discountType ? `<span class="original-price">${settings.currency.split(' ')[0]} ${(item.originalPrice * item.quantity).toFixed(2)}</span>` : ''}
+                    ${settings.currency.split(' ')[0]} ${(item.price * item.quantity).toFixed(2)}
+                  </td>
                 </tr>
               `).join('')}
             </tbody>
