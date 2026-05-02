@@ -1,4 +1,6 @@
-export type PaymentMethod = 'Efectivo' | 'Yape' | 'Plin' | 'Tarjeta' | 'Transferencia';
+export type PaymentMethod = 'Efectivo' | 'Billetera Digital' | 'Tarjeta' | 'Transferencia';
+export type TransactionType = 'COMPRA' | 'VENTA_POS' | 'AJUSTE_INGRESO' | 'AJUSTE_SALIDA' | 'MERMA' | 'DEVOLUCION';
+export type DocumentType = 'FACTURA' | 'BOLETA' | 'TICKET' | 'GUIA_REMISION' | 'NOTA_CREDITO' | 'NINGUNO';
 
 export interface PaymentDetail {
   method: PaymentMethod;
@@ -30,23 +32,28 @@ export interface Role {
   id: string;
   name: string;
   color: string;
-  priority: number; // Calculated automatically based on permissions
+  priority: number;
   permissions: string[];
 }
 
 export interface Staff {
   id: string;
   name: string;
+  username: string;
   email: string;
-  roles: Role[]; // Discord-style multiple roles. Highest priority = Main Role
+  roles: Role[];
   commission_rate: number;
   avatarUrl: string;
+  password?: string;
 }
 
 export interface OrderItem {
   id: string;
   name: string;
   price: number;
+  originalPrice: number;
+  discountType?: 'percentage' | 'fixed' | 'gift';
+  discountValue?: number;
   quantity: number;
   type: 'service' | 'product';
 }
@@ -58,7 +65,7 @@ export interface Order {
   area_id?: string;
   total: number;
   payments: PaymentDetail[];
-  status: 'Completado' | 'Pendiente';
+  status: 'Completado' | 'Pendiente' | 'Cancelada';
   created_at: string;
   items?: OrderItem[];
 }
@@ -69,6 +76,7 @@ export interface Movement {
   amount: number;
   payment_method: PaymentMethod;
   description: string;
+  expense_category?: string;
   created_at: string;
 }
 
@@ -89,13 +97,17 @@ export interface KardexEntry {
   id: string;
   item_id: string;
   type: 'Ingreso' | 'Salida';
+  transaction_type: TransactionType;
+  document_type: DocumentType;
+  document_number: string;
   quantity: number;
+  previous_balance: number;
   balance: number;
-  reason: string;
-  reference: string; // Ej. "Orden #1234", "Factura F001"
   unit_cost: number;
   total_cost: number;
-  staff_name: string; // Usuario responsable del movimiento
+  reason: string;
+  observations?: string;
+  staff_name: string;
   date: string;
 }
 
@@ -150,6 +162,8 @@ export interface Supplier {
 export interface Purchase {
   id: string;
   supplier_id: string;
+  document_type: DocumentType;
+  document_number: string;
   total: number;
   date: string;
   status: 'Completado' | 'Pendiente';
@@ -163,4 +177,16 @@ export interface CashRegister {
   status: 'Abierta' | 'Cerrada';
   opened_at: string;
   closed_at?: string;
+}
+
+export interface Appointment {
+  id: string;
+  client_id: string;
+  staff_id: string;
+  service_id: string;
+  date: string;
+  time: string;
+  status: 'Pendiente' | 'Confirmada' | 'Completada' | 'Cancelada';
+  notes?: string;
+  created_at: string;
 }
