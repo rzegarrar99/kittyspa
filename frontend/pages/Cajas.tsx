@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
-import { Card, Button, Spinner, Modal, EmptyState, Badge, PageHeader, FormInput, Table, Thead, Tbody, Tr, Th, Td } from '../components/UI';
-import { Wallet, Plus, Lock, Unlock, AlertCircle, TrendingUp, TrendingDown, CreditCard } from 'lucide-react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { Card, Button, Spinner, Modal, EmptyState, Badge, Input } from '../components/UI';
+import { Wallet, Plus, Lock, Unlock, AlertCircle, TrendingUp, TrendingDown, CreditCard, QrCode, Landmark } from 'lucide-react';
 import { useCashRegisters, useOrders } from '../hooks/useSupabase';
 import { useToast } from '../contexts/ToastContext';
-import { YapeIcon, PlinIcon } from '../components/PaymentIcons';
+import { KittyIcon } from '../components/KittyIcon';
 import { CashRegister } from '../types';
+import { cashRegisterSchema, CashRegisterFormData } from '../schemas/system.schema';
 import { motion } from 'framer-motion';
 
 export const Cajas: React.FC = () => {
@@ -12,96 +15,116 @@ export const Cajas: React.FC = () => {
   const { movements, addMovement } = useOrders();
   const { addToast } = useToast();
   
+  // Modales
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
   const [isOpenModalOpen, setIsOpenModalOpen] = useState(false);
   const [isCloseModalOpen, setIsCloseModalOpen] = useState(false);
   
-  const [createForm, setCreateForm] = useState({ name: '' });
-  const [openForm, setOpenForm] = useState({ initial_balance: '' });
-  const [closeForm, setCloseForm] = useState({ physical_amount: '' });
-  
   const [selectedRegister, setSelectedRegister] = useState<CashRegister | null>(null);
   const [expectedBalance, setExpectedBalance] = useState(0);
-  const [digitalStats, setDigitalStats] = useState({ yape: 0, plin: 0, tarjeta: 0, transferencia: 0 });
+  const [digitalStats, setDigitalStats] = useState({ billetera: 0, tarjeta: 0, transferencia: 0 });
 
-  const handleCreateRegister = async (e: React.FormEvent) => {
-    e.preventDefault();
-    await addItem({
-      name: createForm.name,
-      initial_balance: 0,
-      current_balance: 0,
-      status: 'Cerrada',
-      opened_at: new Date().toISOString()
-    });
-    addToast('Nueva caja registradora creada 🎀', 'success');
-    setIsCreateModalOpen(false);
-    setCreateForm({ name: '' });
+  // 🚀 ENTERPRISE: React Hook Form + Zod para Crear/Abrir Caja
+  const { register: registerForm, handleSubmit: handleFormSubmit, reset: resetForm, formState: { errors: formErrors } } = useForm<CashRegisterFormData>({
+    resolver: zodResolver(cashRegisterSchema),
+    defaultValues: { name: '', initial_balance: 0 }
+  });
+
+  // Estado simple para el cierre de caja (solo un input)
+  const [physicalAmount, setPhysicalAmount] = useState('');
+
+  // 1. Crear nueva caja física (Admin)
+  const onCraeteSubmit = async (data: CashRegisterFormData) => {
+    try {
+      await addItem({
+        name: data.name,
+        initial_balance: 0,
+        current_balance: 0,
+        status: 'Cerrada',
+        opened_at: new Date().toISOString()
+      });
+      addToast('Nueva caja registradora creada 🎀', 'success');
+      setIsCreateModalOpen(false);
+      resetForm();
+    } catch (error) {
+      addToast('Error al crear la caja.', 'error');
+    }
   };
 
-  const handleOpenShift = async (e: React.FormEvent) => {
-    e.preventDefault();
+  // 2. Abrir Turno
+  const onOpenSubmit = async (data: CashRegisterFormData) => {
     if (!selectedRegister) return;
-
-    await updateItem(selectedRegister.id, {
-      status: 'Abierta',
-      initial_balance: Number(openForm.initial_balance),
-      current_balance: Number(openForm.initial_balance),
-      opened_at: new Date().toISOString(),
-      closed_at: undefined
-    });
-    
-    addToast(`Turno abierto en ${selectedRegister.name} 🎀`, 'success');
-    setIsOpenModalOpen(false);
-    setOpenForm({ initial_balance: '' });
+    try {
+      await updateItem(selectedRegister.id, {
+        status: 'Abierta',
+        initial_balance: data.initial_balance,
+        current_balance: data.initial_balance,
+        opened_at: new Date().toISOString(),
+        closed_at: undefined
+      });
+      
+      addToast(`Turno abierto en ${selectedRegister.name} 🎀`, 'success');
+      setIsOpenModalOpen(false);
+      resetForm();
+    } catch (error) {
+      addToast('Error al abrir el turno.', 'error');
+    }
   };
 
-  const handleCloseShift = async (e: React.FormEvent) => {
+  // 3. Cerrar Turno (Arqueo)
+  const handleConfirmClose = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedRegister) return;
+    if (!selectedRegister || physicalAmount === '') return;
 
-    const physical = Number(closeForm.physical_amount);
+    const physical = Number(physicalAmount);
     const difference = physical - expectedBalance;
 
-    if (difference < 0) {
-      await addMovement({
-        type: 'Egreso',
-        description: `Faltante en cierre de caja: ${selectedRegister.name}`,
-        amount: Math.abs(difference),
-        payment_method: 'Efectivo'
-      });
-      addToast(`Se registró un faltante de S/. ${Math.abs(difference).toFixed(2)}`, 'error');
-    } else if (difference > 0) {
-      await addMovement({
-        type: 'Ingreso',
-        description: `Sobrante en cierre de caja: ${selectedRegister.name}`,
-        amount: difference,
-        payment_method: 'Efectivo'
-      });
-      addToast(`Se registró un sobrante de S/. ${difference.toFixed(2)}`, 'success');
-    }
+    try {
+      if (difference < 0) {
+        await addMovement({
+          type: 'Egreso',
+          description: `Faltante en cierre de caja: ${selectedRegister.name}`,
+          amount: Math.abs(difference),
+          payment_method: 'Efectivo'
+        });
+        addToast(`Se registró un faltante de S/. ${Math.abs(difference).toFixed(2)}`, 'error');
+      } else if (difference > 0) {
+        await addMovement({
+          type: 'Ingreso',
+          description: `Sobrante en cierre de caja: ${selectedRegister.name}`,
+          amount: difference,
+          payment_method: 'Efectivo'
+        });
+        addToast(`Se registró un sobrante de S/. ${difference.toFixed(2)}`, 'success');
+      }
 
-    await updateItem(selectedRegister.id, { 
-      status: 'Cerrada', 
-      closed_at: new Date().toISOString(), 
-      current_balance: physical 
-    });
-    
-    addToast('Turno cerrado correctamente.', 'success');
-    setIsCloseModalOpen(false);
-    setCloseForm({ physical_amount: '' });
+      await updateItem(selectedRegister.id, { 
+        status: 'Cerrada', 
+        closed_at: new Date().toISOString(), 
+        current_balance: physical 
+      });
+      
+      addToast('Turno cerrado correctamente.', 'success');
+      setIsCloseModalOpen(false);
+      setPhysicalAmount('');
+    } catch (error) {
+      addToast('Error al cerrar la caja.', 'error');
+    }
   };
 
+  // Helper para calcular estadísticas en vivo (Separando Efectivo de Digital)
   const getRegisterStats = (reg: CashRegister) => {
-    if (reg.status === 'Cerrada') return { efectivo: reg.current_balance, digital: 0, egresos: 0, yape: 0, plin: 0, tarjeta: 0, transferencia: 0 };
+    if (reg.status === 'Cerrada') return { efectivo: reg.current_balance, digital: 0, egresos: 0, billetera: 0, tarjeta: 0, transferencia: 0 };
 
     const openDate = new Date(reg.opened_at);
     const regMovements = movements.filter(m => new Date(m.created_at) >= openDate);
     
     const ingresosEfectivo = regMovements.filter(m => m.type === 'Ingreso' && m.payment_method === 'Efectivo').reduce((sum, m) => sum + m.amount, 0);
     const ingresosDigitales = regMovements.filter(m => m.type === 'Ingreso' && m.payment_method !== 'Efectivo').reduce((sum, m) => sum + m.amount, 0);
+    
     const egresosEfectivo = regMovements.filter(m => m.type === 'Egreso').reduce((sum, m) => sum + m.amount, 0); 
     
-    const yape = regMovements.filter(m => m.type === 'Ingreso' && m.payment_method === 'Yape/Plin').reduce((sum, m) => sum + m.amount, 0);
+    const billetera = regMovements.filter(m => m.type === 'Ingreso' && m.payment_method === 'Billetera Digital').reduce((sum, m) => sum + m.amount, 0);
     const tarjeta = regMovements.filter(m => m.type === 'Ingreso' && m.payment_method === 'Tarjeta').reduce((sum, m) => sum + m.amount, 0);
     const transferencia = regMovements.filter(m => m.type === 'Ingreso' && m.payment_method === 'Transferencia').reduce((sum, m) => sum + m.amount, 0);
 
@@ -109,25 +132,36 @@ export const Cajas: React.FC = () => {
       efectivo: reg.initial_balance + ingresosEfectivo - egresosEfectivo,
       digital: ingresosDigitales,
       egresos: egresosEfectivo,
-      yape, plin: 0, tarjeta, transferencia
+      billetera,
+      tarjeta,
+      transferencia
     };
   };
 
   const openCloseModal = (reg: CashRegister, stats: any) => {
     setSelectedRegister(reg);
     setExpectedBalance(stats.efectivo);
-    setDigitalStats({ yape: stats.yape, plin: stats.plin, tarjeta: stats.tarjeta, transferencia: stats.transferencia });
-    setCloseForm({ physical_amount: stats.efectivo.toString() });
+    setDigitalStats({ billetera: stats.billetera, tarjeta: stats.tarjeta, transferencia: stats.transferencia });
+    setPhysicalAmount(stats.efectivo.toString());
     setIsCloseModalOpen(true);
   };
 
   return (
     <div className="space-y-6 animate-in fade-in duration-500">
-      <PageHeader 
-        title="Control de Cajas" 
-        subtitle="Apertura de turnos y arqueo de cajas." 
-        action={<Button onClick={() => setIsCreateModalOpen(true)} variant="secondary"><Plus className="w-5 h-5" /> Crear Caja Física</Button>} 
-      />
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div className="flex items-center gap-4">
+          <div className="bg-white/80 backdrop-blur-sm rounded-full border border-white p-2 shadow-sm">
+            <KittyIcon className="w-10 h-10" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold text-plum">Control de Cajas</h1>
+            <p className="text-plum/60 font-bold mt-1">Apertura de turnos y arqueo de cajas.</p>
+          </div>
+        </div>
+        <Button onClick={() => { resetForm(); setIsCreateModalOpen(true); }} variant="secondary">
+          <Plus className="w-5 h-5" /> Crear Caja Física
+        </Button>
+      </div>
 
       {loading ? <Spinner /> : registers.length === 0 ? <EmptyState message="No hay cajas registradas." /> : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
@@ -190,7 +224,7 @@ export const Cajas: React.FC = () => {
                         <Lock className="w-5 h-5" /> Arqueo y Cierre
                       </Button>
                     ) : (
-                      <Button variant="outline" className="w-full" onClick={() => { setSelectedRegister(reg); setIsOpenModalOpen(true); }}>
+                      <Button variant="outline" className="w-full" onClick={() => { setSelectedRegister(reg); resetForm({ name: reg.name, initial_balance: 0 }); setIsOpenModalOpen(true); }}>
                         <Unlock className="w-5 h-5" /> Abrir Turno
                       </Button>
                     )}
@@ -202,9 +236,15 @@ export const Cajas: React.FC = () => {
         </div>
       )}
 
+      {/* Modal Crear Caja Física */}
       <Modal isOpen={isCreateModalOpen} onClose={() => setIsCreateModalOpen(false)} title="Crear Caja Física">
-        <form onSubmit={handleCreateRegister} className="space-y-4">
-          <FormInput label="Nombre de la Caja" required value={createForm.name} onChange={e => setCreateForm({name: e.target.value})} placeholder="Ej. Caja Recepción, Caja 2..." />
+        <form onSubmit={handleFormSubmit(onCraeteSubmit)} className="space-y-4">
+          <Input 
+            label="Nombre de la Caja"
+            {...registerForm('name')}
+            error={formErrors.name?.message}
+            placeholder="Ej. Caja Recepción, Caja 2..." 
+          />
           <div className="pt-4 flex justify-end gap-3">
             <Button type="button" variant="ghost" onClick={() => setIsCreateModalOpen(false)}>Cancelar</Button>
             <Button type="submit">Crear Caja</Button>
@@ -212,9 +252,18 @@ export const Cajas: React.FC = () => {
         </form>
       </Modal>
 
+      {/* Modal Abrir Turno */}
       <Modal isOpen={isOpenModalOpen} onClose={() => setIsOpenModalOpen(false)} title={`Abrir Turno: ${selectedRegister?.name}`}>
-        <form onSubmit={handleOpenShift} className="space-y-4">
-          <FormInput label="Base Inicial (Efectivo en caja) S/." required type="number" min="0" step="0.1" value={openForm.initial_balance} onChange={e => setOpenForm({initial_balance: e.target.value})} placeholder="0.00" />
+        <form onSubmit={handleFormSubmit(onOpenSubmit)} className="space-y-4">
+          <Input 
+            label="Base Inicial (Efectivo en caja) S/."
+            type="number" 
+            min="0" 
+            step="0.1" 
+            {...registerForm('initial_balance')}
+            error={formErrors.initial_balance?.message}
+            placeholder="0.00" 
+          />
           <div className="pt-4 flex justify-end gap-3">
             <Button type="button" variant="ghost" onClick={() => setIsOpenModalOpen(false)}>Cancelar</Button>
             <Button type="submit">Iniciar Turno</Button>
@@ -222,23 +271,25 @@ export const Cajas: React.FC = () => {
         </form>
       </Modal>
 
+      {/* Modal Arqueo y Cierre de Caja */}
       <Modal isOpen={isCloseModalOpen} onClose={() => setIsCloseModalOpen(false)} title={`Arqueo: ${selectedRegister?.name}`}>
-        <form onSubmit={handleCloseShift} className="space-y-6">
-          <div className="grid grid-cols-3 gap-2 mb-4">
-            <div className="bg-purple-50/80 border border-white rounded-2xl p-2 text-center shadow-sm">
-              <YapeIcon className="w-4 h-4 text-[#742284] mx-auto mb-1" />
-              <p className="text-[9px] font-bold text-plum/50 uppercase">Yape/Plin</p>
-              <p className="font-black text-plum text-sm">S/. {digitalStats.yape.toFixed(2)}</p>
+        <form onSubmit={handleConfirmClose} className="space-y-6">
+          
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-fuchsia-50/80 border border-white rounded-2xl p-3 text-center shadow-sm">
+              <QrCode className="w-5 h-5 text-fuchsia-600 mx-auto mb-1" />
+              <p className="text-[10px] font-bold text-plum/50 uppercase">Billetera Digital</p>
+              <p className="font-black text-plum">S/. {digitalStats.billetera.toFixed(2)}</p>
             </div>
-            <div className="bg-blue-50/80 border border-white rounded-2xl p-2 text-center shadow-sm">
-              <CreditCard className="w-4 h-4 text-blue-500 mx-auto mb-1" />
-              <p className="text-[9px] font-bold text-plum/50 uppercase">Tarjeta</p>
-              <p className="font-black text-plum text-sm">S/. {digitalStats.tarjeta.toFixed(2)}</p>
+            <div className="bg-blue-50/80 border border-white rounded-2xl p-3 text-center shadow-sm">
+              <CreditCard className="w-5 h-5 text-blue-500 mx-auto mb-1" />
+              <p className="text-[10px] font-bold text-plum/50 uppercase">Tarjeta</p>
+              <p className="font-black text-plum">S/. {digitalStats.tarjeta.toFixed(2)}</p>
             </div>
-            <div className="bg-orange-50/80 border border-white rounded-2xl p-2 text-center shadow-sm">
-              <Wallet className="w-4 h-4 text-orange-500 mx-auto mb-1" />
-              <p className="text-[9px] font-bold text-plum/50 uppercase">Transf.</p>
-              <p className="font-black text-plum text-sm">S/. {digitalStats.transferencia.toFixed(2)}</p>
+            <div className="bg-orange-50/80 border border-white rounded-2xl p-3 text-center shadow-sm">
+              <Landmark className="w-5 h-5 text-orange-500 mx-auto mb-1" />
+              <p className="text-[10px] font-bold text-plum/50 uppercase">Transf.</p>
+              <p className="font-black text-plum">S/. {digitalStats.transferencia.toFixed(2)}</p>
             </div>
           </div>
 
@@ -247,32 +298,37 @@ export const Cajas: React.FC = () => {
             <p className="text-4xl font-black text-plum">S/. {expectedBalance.toFixed(2)}</p>
           </div>
 
-          <FormInput 
-            label="Efectivo Físico Contado (S/.)" 
-            required type="number" min="0" step="0.1" 
-            value={closeForm.physical_amount} 
-            onChange={e => setCloseForm({physical_amount: e.target.value})} 
-            className="text-center text-2xl"
-            placeholder="0.00" 
-          />
+          <div>
+            <label className="block text-xs font-bold text-plum/60 mb-2 ml-1 uppercase tracking-wider">Efectivo Físico Contado (S/.)</label>
+            <input 
+              required 
+              type="number" 
+              min="0" 
+              step="0.1" 
+              value={physicalAmount} 
+              onChange={e => setPhysicalAmount(e.target.value)} 
+              className="w-full px-4 py-4 bg-white/80 border border-white rounded-2xl focus:ring-2 focus:ring-primary/20 text-plum font-black text-2xl text-center shadow-sm" 
+              placeholder="0.00" 
+            />
+          </div>
 
-          {closeForm.physical_amount !== '' && (
+          {physicalAmount !== '' && (
             <div className={`p-4 rounded-2xl border flex items-center gap-3 shadow-sm ${
-              Number(closeForm.physical_amount) === expectedBalance 
+              Number(physicalAmount) === expectedBalance 
                 ? 'bg-green-50/80 border-green-200 text-green-700' 
                 : 'bg-red-50/80 border-red-200 text-red-700'
             }`}>
               <AlertCircle className="w-6 h-6 shrink-0" />
               <div>
                 <p className="font-black text-sm uppercase tracking-wide">
-                  {Number(closeForm.physical_amount) === expectedBalance 
+                  {Number(physicalAmount) === expectedBalance 
                     ? 'La caja está perfectamente cuadrada.' 
-                    : Number(closeForm.physical_amount) > expectedBalance 
-                      ? `Hay un SOBRANTE de S/. ${(Number(closeForm.physical_amount) - expectedBalance).toFixed(2)}`
-                      : `Hay un FALTANTE de S/. ${(expectedBalance - Number(closeForm.physical_amount)).toFixed(2)}`
+                    : Number(physicalAmount) > expectedBalance 
+                      ? `Hay un SOBRANTE de S/. ${(Number(physicalAmount) - expectedBalance).toFixed(2)}`
+                      : `Hay un FALTANTE de S/. ${(expectedBalance - Number(physicalAmount)).toFixed(2)}`
                   }
                 </p>
-                {Number(closeForm.physical_amount) !== expectedBalance && (
+                {Number(physicalAmount) !== expectedBalance && (
                   <p className="text-xs mt-1 font-bold opacity-80">Se generará un movimiento automático por la diferencia.</p>
                 )}
               </div>
