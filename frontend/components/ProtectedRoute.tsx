@@ -8,10 +8,9 @@ interface ProtectedRouteProps {
 }
 
 export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ permission, children }) => {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
-  const hasPermission = useAuthStore(state => state.hasPermission);
+  const { hasPermission, user } = useAuthStore();
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <Navigate to="/login" replace />;
   }
 
