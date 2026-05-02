@@ -10,6 +10,5 @@ export const clientSchema = z.object({
 
 export type ClientFormData = z.infer<typeof clientSchema>;
 
-// MIGRACIÓN A FIREBASE:
-// Este schema se usará tanto en el frontend (react-hook-form) como en el backend (Cloud Functions)
-// para garantizar que los datos que entran a Firestore sean 100% íntegros.
+// 🚀 MIGRACIÓN A FIREBASE: 
+// Los schemas Zod son agnósticos a la base de datos. Se mantendrán exactamente igual.
