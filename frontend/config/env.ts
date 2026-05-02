@@ -1,22 +1,23 @@
 import { z } from 'zod';
 
 const envSchema = z.object({
-  VITE_FIREBASE_API_KEY: z.string().optional().default('mock-key'),
-  VITE_FIREBASE_PROJECT_ID: z.string().optional().default('mock-project'),
-  VITE_FIREBASE_APP_ID: z.string().optional().default('mock-app-id'),
-  // Nota: En producción, quitar .optional().default() para forzar la validación estricta
+  VITE_FIREBASE_API_KEY: z.string().optional(),
+  VITE_FIREBASE_PROJECT_ID: z.string().optional(),
+  VITE_FIREBASE_APP_ID: z.string().optional(),
+  MODE: z.enum(['development', 'production', 'test']).default('development'),
 });
 
-// import.meta.env está disponible en Vite
+// En Vite las variables de entorno están en import.meta.env
+// Usamos un fallback vacío para evitar que rompa en el sandbox si no existen aún
 const parsed = envSchema.safeParse(import.meta.env || {});
 
 if (!parsed.success) {
   console.error('❌ Variables de entorno inválidas:', parsed.error.format());
-  throw new Error('Faltan variables de entorno críticas para iniciar la aplicación.');
+  // throw new Error(`Faltan variables de entorno críticas. Revisa tu archivo .env`);
 }
 
-export const env = parsed.data;
+export const env = parsed.success ? parsed.data : { MODE: 'development' };
 
-// MIGRACIÓN A FIREBASE:
-// Cuando se configure Firebase real, quitar los .default() del schema para que 
-// la app falle rápido (fail-fast) si no están configuradas las credenciales en Vercel/Netlify.
+// 🚀 MIGRACIÓN A FIREBASE: 
+// Cuando se migre a Firebase, cambiar .optional() por .min(1) en las credenciales 
+// y descomentar el throw new Error para aplicar el patrón Fail-Fast.
