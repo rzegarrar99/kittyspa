@@ -7,7 +7,7 @@
   
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
@@ -21,17 +21,20 @@
             surface: '#FFFFFF',
             background: '#FFF0F5',
             plum: '#2D1B2E',
+            'plum-light': '#4A334C',
           },
           fontFamily: {
             sans: ['Nunito', 'sans-serif'],
           },
           boxShadow: {
-            'coquette': '0 10px 40px -10px rgba(255, 42, 122, 0.08)',
-            'glass': '0 8px 32px 0 rgba(255, 42, 122, 0.05)',
+            'coquette': '0 10px 40px -10px rgba(255, 42, 122, 0.12)',
+            'glass': '0 8px 32px 0 rgba(45, 27, 46, 0.06)',
             'glow': '0 0 20px rgba(255, 42, 122, 0.15)',
+            'inner-white': 'inset 0 2px 4px 0 rgba(255, 255, 255, 0.8)',
           },
           borderRadius: {
             '4xl': '2rem',
+            '5xl': '2.5rem',
           }
         }
       }
@@ -41,14 +44,19 @@
   <style>
     body {
       background-color: #FFF0F5;
-      background-image: radial-gradient(rgba(255, 182, 193, 0.4) 2px, transparent 2px);
-      background-size: 30px 30px;
+      background-image: radial-gradient(rgba(255, 182, 193, 0.25) 1.5px, transparent 1.5px);
+      background-size: 24px 24px;
       color: #2D1B2E;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
     }
-    ::-webkit-scrollbar { width: 8px; height: 8px; }
-    ::-webkit-scrollbar-track { background: transparent; }
-    ::-webkit-scrollbar-thumb { background: rgba(255, 182, 193, 0.8); border-radius: 10px; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; margin: 4px; }
+    ::-webkit-scrollbar-thumb { background: rgba(255, 142, 175, 0.5); border-radius: 10px; }
     ::-webkit-scrollbar-thumb:hover { background: #FF2A7A; }
+    input[type=number]::-webkit-inner-spin-button, 
+    input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    input[type=number] { -moz-appearance: textfield; }
   </style>
 
   </head>
