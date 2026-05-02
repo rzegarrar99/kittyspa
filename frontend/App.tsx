@@ -6,6 +6,7 @@ import { Layout } from './components/Layout';
 import { Login } from './pages/Login';
 import { Dashboard } from './pages/Dashboard';
 import { Clientes } from './pages/Clientes';
+import { Citas } from './pages/Citas'; // NUEVO
 import { Servicios } from './pages/Servicios';
 import { POS } from './pages/POS';
 import { Reportes } from './pages/Reportes';
@@ -24,6 +25,7 @@ import { Unidades } from './pages/Unidades';
 import { Areas } from './pages/Areas';
 import { Proveedores } from './pages/Proveedores';
 import { Productos } from './pages/Productos';
+import { Compras } from './pages/Compras';
 import { Cajas } from './pages/Cajas';
 import { AccesoDenegado } from './pages/AccesoDenegado';
 import { ToastProvider } from './contexts/ToastContext';
@@ -32,9 +34,9 @@ import { useAuthStore } from './stores/authStore';
 import { ProtectedRoute } from './components/ProtectedRoute';
 
 const AppRoutes = () => {
-  const isAuthenticated = useAuthStore(state => state.isAuthenticated);
+  const user = useAuthStore(state => state.user);
 
-  if (!isAuthenticated) {
+  if (!user) {
     return <Login />;
   }
 
@@ -43,13 +45,13 @@ const AppRoutes = () => {
       <Route path="/" element={<Layout />}>
         <Route index element={<ProtectedRoute permission="dashboard.view"><Dashboard /></ProtectedRoute>} />
         <Route path="clientes" element={<ProtectedRoute permission="clients.view"><Clientes /></ProtectedRoute>} />
+        <Route path="citas" element={<ProtectedRoute permission="clients.view"><Citas /></ProtectedRoute>} />
         <Route path="servicios" element={<ProtectedRoute permission="services.view"><Servicios /></ProtectedRoute>} />
         <Route path="pos" element={<ProtectedRoute permission="pos.use"><POS /></ProtectedRoute>} />
         <Route path="ordenes" element={<ProtectedRoute permission="pos.use"><Ordenes /></ProtectedRoute>} />
         <Route path="reportes" element={<ProtectedRoute permission="reports.view"><Reportes /></ProtectedRoute>} />
         <Route path="comisiones" element={<ProtectedRoute permission="reports.view"><Comisiones /></ProtectedRoute>} />
         
-        {/* Rutas de Almacén y Kardex */}
         <Route path="almacen" element={<ProtectedRoute permission="inventory.view"><Almacen /></ProtectedRoute>} />
         <Route path="almacen/kardex/:id" element={<ProtectedRoute permission="inventory.view"><KardexView /></ProtectedRoute>} />
         
@@ -65,6 +67,7 @@ const AppRoutes = () => {
         <Route path="productos" element={<ProtectedRoute permission="catalog.view"><Productos /></ProtectedRoute>} />
         <Route path="areas" element={<ProtectedRoute permission="operations.view"><Areas /></ProtectedRoute>} />
         <Route path="proveedores" element={<ProtectedRoute permission="inventory.view"><Proveedores /></ProtectedRoute>} />
+        <Route path="compras" element={<ProtectedRoute permission="inventory.edit"><Compras /></ProtectedRoute>} />
         <Route path="cajas" element={<ProtectedRoute permission="finances.view"><Cajas /></ProtectedRoute>} />
         
         <Route path="denegado" element={<AccesoDenegado />} />
