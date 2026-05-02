@@ -1,18 +1,16 @@
 import React, { useMemo } from 'react';
-import { Card, Spinner, EmptyState, Button } from '../components/UI';
-import { DollarSign, CalendarHeart, Users, TrendingUp, Sparkles, MonitorSmartphone } from 'lucide-react';
+import { Card, Spinner, EmptyState } from '../components/UI';
+import { DollarSign, CalendarHeart, Users, TrendingUp, Sparkles } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
   BarChart, Bar, Cell
 } from 'recharts';
 import { useOrders, useClients } from '../hooks/useSupabase';
 import { motion } from 'framer-motion';
-import { useNavigate } from 'react-router-dom';
 
 export const Dashboard: React.FC = () => {
   const { orders, movements } = useOrders();
   const { clients, loading: loadingClients } = useClients();
-  const navigate = useNavigate();
 
   const today = new Date().toISOString().split('T')[0];
   
@@ -32,8 +30,8 @@ export const Dashboard: React.FC = () => {
     const days = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
     const data = days.map(day => ({ name: day, value: 0 }));
     orders.forEach(o => {
-      const date = new Date(o.created_at);
-      data[date.getDay()].value += o.total;
+      const orderDate = new Date(o.created_at);
+      data[orderDate.getDay()].value += o.total;
     });
     if (orders.length === 0) {
       return [
@@ -71,12 +69,7 @@ export const Dashboard: React.FC = () => {
 
   return (
     <div className="space-y-8 animate-in fade-in duration-500">
-      <div className="flex justify-end">
-        <Button onClick={() => navigate('/pos')} className="shadow-glow animate-pulse">
-          <MonitorSmartphone className="w-5 h-5" /> Ir al Punto de Venta
-        </Button>
-      </div>
-
+      
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {kpis.map((kpi, idx) => (
           <motion.div key={idx} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: idx * 0.1 }}>
